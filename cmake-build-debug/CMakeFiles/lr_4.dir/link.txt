@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/lr_4.dir/main.cpp.o -o lr_4

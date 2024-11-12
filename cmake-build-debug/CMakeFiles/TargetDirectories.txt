@@ -1,0 +1,3 @@
+/home/kali/Desktop/LR_4/cmake-build-debug/CMakeFiles/lr_4.dir
+/home/kali/Desktop/LR_4/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/kali/Desktop/LR_4/cmake-build-debug/CMakeFiles/rebuild_cache.dir
