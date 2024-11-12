@@ -4,4 +4,7 @@ project(lr_4)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(lr_4 main.cpp)
+add_executable(lr_4
+        main.cpp
+        primitives.cpp
+        timeCheck.cpp)
