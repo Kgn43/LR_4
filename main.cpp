@@ -6,40 +6,7 @@ mutex mut;
 vector<int> someGeneralData{1,3,2};
 random_device rd;
 mt19937 gen(rd());
-uniform_int_distribution distribution(0, 5);
-void signal();
-
-class Writer {
-    thread potok;
-    uint32_t priority;
-public:
-    binary_semaphore lock{1};
-    Writer (int data) : priority(distribution(gen)) {
-        potok = thread(&Writer::write, this, data);
-        cout << "Writer " << this << " created" << endl;
-    }
-    ~Writer() {
-        if (potok.joinable()) {
-            potok.join();
-        }
-    }
-    void write(const int &data) {
-        while (true) {
-            if (lock.try_acquire()) {
-                {
-                    lock_guard<mutex> lock(mut);
-                    someGeneralData.push_back(data);
-                }
-                lock.release();
-                sleep(2);
-                return;
-            }
-        }
-    }
-    uint32_t getPriority() const {
-        return priority;
-    }
-};
+uniform_int_distribution distribution(1, 5);
 
 
 class Reader {
@@ -55,8 +22,7 @@ public:
             cout << i << ' ';
         }
         cout << endl;
-        //this_thread::sleep_for(chrono::seconds(1));
-        signal();
+        this_thread::sleep_for(chrono::seconds(1));
         globSem.release();
     }
     ~Reader() {
@@ -67,39 +33,70 @@ public:
 };
 
 
-vector<shared_ptr<Reader>> readers;
-vector<shared_ptr<Writer>> writers;
 
-
-void signal() {
-    writers[0]->lock.acquire();
-}
-
-void taskThird() {
-    for (int i = 0; i < 10; ++i) {
-        // readers.emplace_back(make_shared<Reader>(someGeneralData));
-        // readers.emplace_back(make_shared<Reader>(someGeneralData));
-        // readers.emplace_back(make_shared<Reader>(someGeneralData));
-        if (int randNum = distribution(gen); writers.empty()) {
-            writers.emplace_back(make_shared<Writer>(randNum));
+class Writer {
+    thread potok;
+    uint32_t priority;
+    bool existed;
+public:
+    Writer (const vector<shared_ptr<Writer>> &vec, int data) : priority(distribution(gen)) {
+        potok = thread(&Writer::write, this, vec, data);
+        existed = false;
+        cout << "Writer " << this->potok.get_id() << " created with priority " << priority << " and value " << data << endl;
+    }
+    ~Writer() {
+        if (potok.joinable()) {
+            potok.join();
         }
-        else {
-            for (auto j = writers.begin(); j != writers.end(); ++j) {
-                if (j->get()->getPriority() < randNum) {
-                    writers.insert(j-1, make_shared<Writer>(randNum));
-                }
-                if (j + 1 == writers.end()) {
-                    writers.emplace_back(make_shared<Writer>(randNum));
-                }
+    }
+    bool isThisTreadWithMaxPriority (const vector<shared_ptr<Writer>> &vec) const {
+        this_thread::sleep_for(chrono::seconds(1));
+        uint32_t maxPriority = 0;
+        for (const auto &i : vec) {
+            if (i->getPriority() > maxPriority && i->getExisted() == false) {
+                maxPriority = i->getPriority();
+            }
+        }
+        cout << vec.size() << maxPriority << " " << this->priority << endl;
+        return maxPriority == this->priority;
+    }
+    void write(const vector<shared_ptr<Writer>> &vec, const int &data) {
+        while (true) {
+            if (isThisTreadWithMaxPriority(vec)) {
+                lock_guard<mutex> lock(mut);
+                someGeneralData.push_back(data);
+                //this_thread::sleep_for(chrono::seconds(4));
+                existed = true;
+                return;
             }
         }
     }
+    uint32_t getPriority() const {
+        return priority;
+    }
+    bool getExisted() const {
+        return existed;
+    }
+};
+
+void taskThird() {
+    vector<shared_ptr<Reader>> readers;
+    vector<shared_ptr<Writer>> writers;
+    readers.reserve(10);
+    writers.reserve(10);
+    for (int i = 0; i < 4; ++i) {
+        readers.emplace_back(make_shared<Reader>(someGeneralData));
+        readers.emplace_back(make_shared<Reader>(someGeneralData));
+        int randNum = distribution(gen);
+        writers.emplace_back(make_unique<Writer>(ref(writers), randNum));
+        //sleep(1);
+    }
 }
+
 
 int main() {
     // taskOne();
     // taskSecond();
     taskThird();
-    cout << someGeneralData.size() << endl;
     return 0;
 }
